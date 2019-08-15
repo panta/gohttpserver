@@ -4,15 +4,30 @@
 
 set -ex
 
-docker run --rm --privileged multiarch/qemu-user-static:register --reset
-echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
+# determine the directory where this script resides
+#   (see http://stackoverflow.com/a/246128/1363486)
+SOURCE="${BASH_SOURCE[0]}"
+while [ -h "$SOURCE" ]; do # resolve $SOURCE until the file is no longer a symlink
+  DIR="$( cd -P "$( dirname "$SOURCE" )" && pwd )"
+  SOURCE="$(readlink "$SOURCE")"
+  [[ $SOURCE != /* ]] && SOURCE="$DIR/$SOURCE" # if $SOURCE was a relative symlink, we need to resolve it relative to the path where the symlink file was located
+done
+SCRIPT_DIR="$( cd -P "$( dirname "$SOURCE" )" && pwd )"
 
-IMAGE_NAME="gohttpserver"
+DOCKERFILE_DIR="${SCRIPT_DIR}"
 
-# arm linux for respberry
-docker build -t $DOCKER_USERNAME/$IMAGE_NAME:armhf -f docker/Dockerfile.armhf .
+: ${DOCKER_USERNAME:="panta"}
+: ${IMAGE_NAME:="gohttpserver"}
+: ${IMAGE_TAG:="latest"}
+: ${REPOSITORY:="${DOCKER_USERNAME}/${IMAGE_NAME}"}
+
+# docker run --rm --privileged multiarch/qemu-user-static:register --reset
+# echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
+
+# # arm linux for respberry
+# docker build -t $DOCKER_USERNAME/$IMAGE_NAME:armhf -f ${DOCKERFILE_DIR}/Dockerfile.armhf .
 
 # x86 linux
-docker build -t $DOCKER_USERNAME/$IMAGE_NAME:latest -f docker/Dockerfile .
+docker build --rm -t $REPOSITORY:$IMAGE_TAG -f ${DOCKERFILE_DIR}/Dockerfile .
 
-docker push $DOCKER_USERNAME/$IMAGE_NAME
+docker push $REPOSITORY

@@ -9,16 +9,18 @@ fi
 
 set -ex
 
+: ${DOCKER_USERNAME:="panta"}
+
 sed -i '/experimental/d' $HOME/.docker/config.json
 sed -i '1a"experimental": "enabled",' $HOME/.docker/config.json
-docker manifest create codeskyblue/gohttpserver \
-  codeskyblue/gohttpserver:latest \
-  codeskyblue/gohttpserver:armhf
-docker manifest annotate codeskyblue/gohttpserver \
-  codeskyblue/gohttpserver:latest --os linux --arch amd64
-docker manifest annotate codeskyblue/gohttpserver \
-  codeskyblue/gohttpserver:armhf --os linux --arch arm --variant v7
-docker manifest push codeskyblue/gohttpserver
+docker manifest create ${DOCKER_USERNAME}/gohttpserver \
+  ${DOCKER_USERNAME}/gohttpserver:latest \
+  ${DOCKER_USERNAME}/gohttpserver:armhf
+docker manifest annotate ${DOCKER_USERNAME}/gohttpserver \
+  ${DOCKER_USERNAME}/gohttpserver:latest --os linux --arch amd64
+docker manifest annotate ${DOCKER_USERNAME}/gohttpserver \
+  ${DOCKER_USERNAME}/gohttpserver:armhf --os linux --arch arm --variant v7
+docker manifest push ${DOCKER_USERNAME}/gohttpserver
 
 # check again
-docker run mplatform/mquery codeskyblue/gohttpserver
+docker run mplatform/mquery ${DOCKER_USERNAME}/gohttpserver
