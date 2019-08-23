@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"html/template"
+	textTemplate "text/template"
 	"io"
 	"io/ioutil"
 	"log"
@@ -13,6 +14,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -50,6 +52,8 @@ type HTTPStaticServer struct {
 	PlistProxy      string
 	GoogleTrackerID string
 	AuthType        string
+	UploadCommand	string
+	Shell           string
 
 	indexes []IndexFileItem
 	m       *mux.Router
@@ -242,6 +246,39 @@ func (s *HTTPStaticServer) hUploadOrMkdir(w http.ResponseWriter, req *http.Reque
 		return
 	}
 
+	cmdOutput := []byte("")
+	if auth.UploadCommand != "" {
+		cmdlineBuffer := &bytes.Buffer{}
+		t := textTemplate.Must(textTemplate.New("cmdlineTemplate").Parse(auth.UploadCommand))
+		absPath, _ := filepath.Abs(dstPath)
+		t.Execute(cmdlineBuffer, map[string]interface{}{
+			"Root": s.Root,
+			"Filename": filename,
+			"Pathname": absPath,
+			"Directory": dirpath,
+			"Host": req.Host,
+			"Method": req.Method,
+			"URL": req.URL.String(),
+			"RemoteAddr": req.RemoteAddr,
+			"Proto": req.Proto,
+			"ContentLength": req.ContentLength,
+		})
+		cmdline := cmdlineBuffer.String()
+
+		log.Printf("executing upload command: '%s'\n", cmdline)
+		cmd := exec.Command(s.Shell, "-c", cmdline)
+		// cmd.Stdout = os.Stdout
+		// cmd.Stderr = os.Stderr
+		// if err := cmd.Run(); err != nil {
+		cmdOutput, err = cmd.CombinedOutput()
+		if err != nil {
+			log.Println("Trying to execute command for upload:", err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		log.Printf("upload command output:\n%s\n", cmdOutput)
+	}
+
 	w.Header().Set("Content-Type", "application/json;charset=utf-8")
 
 	if req.FormValue("unzip") == "true" {
@@ -262,6 +299,7 @@ func (s *HTTPStaticServer) hUploadOrMkdir(w http.ResponseWriter, req *http.Reque
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"success":     true,
 		"destination": dstPath,
+		"cmd-output":  string(cmdOutput),
 	})
 }
 
@@ -466,6 +504,7 @@ type UserControl struct {
 
 type AccessConf struct {
 	Upload       bool          `yaml:"upload" json:"upload"`
+	UploadCommand string       `yaml:"upload-command" json:"upload-command"`
 	Delete       bool          `yaml:"delete" json:"delete"`
 	Users        []UserControl `yaml:"users" json:"users"`
 	AccessTables []AccessTable `yaml:"accessTables"`
@@ -679,6 +718,7 @@ func (s *HTTPStaticServer) findIndex(text string) []IndexFileItem {
 func (s *HTTPStaticServer) defaultAccessConf() AccessConf {
 	return AccessConf{
 		Upload: s.Upload,
+		UploadCommand: s.UploadCommand,
 		Delete: s.Delete,
 	}
 }

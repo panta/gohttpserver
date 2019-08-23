@@ -23,6 +23,10 @@ import (
 	_ "github.com/shurcooL/vfsgen"
 )
 
+const (
+	DEFAULT_SHELL = "/bin/bash"
+)
+
 type Configure struct {
 	Conf            *os.File `yaml:"-"`
 	Addr            string   `yaml:"addr"`
@@ -35,6 +39,7 @@ type Configure struct {
 	Theme           string   `yaml:"theme"`
 	XHeaders        bool     `yaml:"xheaders"`
 	Upload          bool     `yaml:"upload"`
+	UploadCommand   string   `yaml:"upload-command"`
 	Delete          bool     `yaml:"delete"`
 	PlistProxy      string   `yaml:"plistproxy"`
 	Title           string   `yaml:"title"`
@@ -47,6 +52,7 @@ type Configure struct {
 		ID     string `yaml:"id"`     // for oauth2
 		Secret string `yaml:"secret"` // for oauth2
 	} `yaml:"auth"`
+	Shell           string   `yaml:"shell"`
 }
 
 type httpLogger struct{}
@@ -97,6 +103,7 @@ func parseFlags() error {
 	gcfg.Auth.OpenID = defaultOpenID
 	gcfg.GoogleTrackerID = "UA-81205425-2"
 	gcfg.Title = "Go HTTP File Server"
+	gcfg.Shell = DEFAULT_SHELL
 
 	kingpin.HelpFlag.Short('h')
 	kingpin.Version(versionMessage())
@@ -111,6 +118,7 @@ func parseFlags() error {
 	kingpin.Flag("auth-openid", "OpenID auth identity url").StringVar(&gcfg.Auth.OpenID)
 	kingpin.Flag("theme", "web theme, one of <black|green>").StringVar(&gcfg.Theme)
 	kingpin.Flag("upload", "enable upload support").BoolVar(&gcfg.Upload)
+	kingpin.Flag("upload-command", "command to execute on upload").StringVar(&gcfg.UploadCommand)
 	kingpin.Flag("delete", "enable delete support").BoolVar(&gcfg.Delete)
 	kingpin.Flag("xheaders", "used when behide nginx").BoolVar(&gcfg.XHeaders)
 	kingpin.Flag("cors", "enable cross-site HTTP request").BoolVar(&gcfg.Cors)
@@ -118,6 +126,7 @@ func parseFlags() error {
 	kingpin.Flag("plistproxy", "plist proxy when server is not https").Short('p').StringVar(&gcfg.PlistProxy)
 	kingpin.Flag("title", "server title").StringVar(&gcfg.Title)
 	kingpin.Flag("google-tracker-id", "set to empty to disable it").StringVar(&gcfg.GoogleTrackerID)
+	kingpin.Flag("shell", "shell to use for command execution").StringVar(&gcfg.Shell)
 
 	kingpin.Parse() // first parse conf
 
@@ -151,6 +160,8 @@ func main() {
 	ss.Upload = gcfg.Upload
 	ss.Delete = gcfg.Delete
 	ss.AuthType = gcfg.Auth.Type
+	ss.UploadCommand = gcfg.UploadCommand
+	ss.Shell = gcfg.Shell
 
 	if gcfg.PlistProxy != "" {
 		u, err := url.Parse(gcfg.PlistProxy)

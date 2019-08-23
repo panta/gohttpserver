@@ -142,6 +142,14 @@ docker build -t codeskyblue/gohttpserver -f docker/Dockerfile .
   $ gohttpserver --upload
   ```
 
+Upload with custom command operating on the file: 
+
+  ```sh
+  $ gohttpserver --upload --upload-command "$(pwd)/process-uploaded.sh {{.Pathname}}"
+  ```
+
+(other keys available for commandline template expansion: `Host`, `URL`, `RemoteAddr`, `Root`, `Directory`, ...).
+
 - Enable delete and Create folder
 
   ```sh
@@ -155,6 +163,7 @@ Add access rule by creating a `.ghs.yml` file under a sub-directory. An example:
 ---
 upload: false
 delete: false
+upload-command: ""
 users:
 - email: "codeskyblue@codeskyblue.com"
   delete: true
